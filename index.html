@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AEROFRAME — Flight Simulator</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <canvas id="scene"></canvas>
+  <canvas id="minimap"></canvas>
+  <canvas id="horizon"></canvas>
+
+  <!-- Start overlay -->
+  <div id="startOverlay">
+    <div class="startCard">
+      <h1>AEROFRAME</h1>
+      <p class="tagline">a small procedural flight simulator</p>
+      <button id="startBtn">ENGINE START</button>
+      <div class="controlsGrid">
+        <div><span>W / S</span>pitch up / down</div>
+        <div><span>A / D</span>roll left / right</div>
+        <div><span>Q / E</span>yaw left / right</div>
+        <div><span>↑ / ↓</span>throttle up / down</div>
+        <div><span>C</span>toggle camera</div>
+        <div><span>P</span>autopilot</div>
+        <div><span>1–5</span>weather presets</div>
+        <div><span>R</span>reset aircraft</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HUD -->
+  <div id="hud">
+    <div class="panel top-left">
+      <div class="readout">
+        <div class="label">SPD</div>
+        <div class="value" id="spdVal">000</div>
+        <div class="unit">kt</div>
+      </div>
+      <div class="readout">
+        <div class="label">THR</div>
+        <div class="value" id="thrVal">00</div>
+        <div class="unit">%</div>
+      </div>
+    </div>
+
+    <div class="panel top-right">
+      <div class="readout">
+        <div class="label">ALT</div>
+        <div class="value" id="altVal">0000</div>
+        <div class="unit">ft</div>
+      </div>
+      <div class="readout">
+        <div class="label">HDG</div>
+        <div class="value" id="hdgVal">000</div>
+        <div class="unit">°</div>
+      </div>
+    </div>
+
+    <div class="panel center-bottom">
+      <div id="statusMsg"></div>
+      <div class="modeRow">
+        <span id="camMode">CHASE CAM</span>
+        <span id="apMode" class="off">AUTOPILOT OFF</span>
+        <span id="weatherMode">CLEAR</span>
+      </div>
+    </div>
+
+    <div class="instrCluster">
+      <div class="instrLabel">ATT</div>
+    </div>
+    <div class="mapLabel">MAP</div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
