@@ -29,18 +29,28 @@ function rand(a,b){ return a + Math.random()*(b-a); }
 const KMH = 3.6; // m/s -> km/h
 
 /* ---------------- terrain height field ---------------- */
-const RUNWAY_HALF_WIDTH = 45;
-const RUNWAY_Z_MIN = -1000;
-const RUNWAY_Z_MAX = 260;
-const RUNWAY_EDGE = 220;
+const RUNWAYS = [
+  { x:0,     zMin:-1000, zMax:260,  halfWidth:45, edge:220, home:true },
+  { x:2700,  zMin:1500,  zMax:2050, halfWidth:45, edge:200 },
+  { x:-2900, zMin:-3300, zMax:-2750,halfWidth:45, edge:200 },
+  { x:-2400, zMin:1900,  zMax:2450, halfWidth:45, edge:200 }
+];
+const RUNWAY_HALF_WIDTH = RUNWAYS[0].halfWidth;
+const RUNWAY_Z_MIN = RUNWAYS[0].zMin;
+const RUNWAY_Z_MAX = RUNWAYS[0].zMax;
 
 function flattenFactor(x,z){
-  const dx = Math.abs(x) - RUNWAY_HALF_WIDTH;
-  let dz = 0;
-  if(z < RUNWAY_Z_MIN) dz = RUNWAY_Z_MIN - z;
-  else if(z > RUNWAY_Z_MAX) dz = z - RUNWAY_Z_MAX;
-  const d = Math.max(dx, dz);
-  return 1 - smoothstep(0, RUNWAY_EDGE, d);
+  let maxF = 0;
+  for(const rw of RUNWAYS){
+    const dx = Math.abs(x-rw.x) - rw.halfWidth;
+    let dz = 0;
+    if(z < rw.zMin) dz = rw.zMin - z;
+    else if(z > rw.zMax) dz = z - rw.zMax;
+    const d = Math.max(dx, dz);
+    const f = 1 - smoothstep(0, rw.edge, d);
+    if(f > maxF) maxF = f;
+  }
+  return maxF;
 }
 
 function rawHeight(x,z){
@@ -127,41 +137,45 @@ const terrainMat = new THREE.MeshLambertMaterial({ vertexColors:true });
 const terrain = new THREE.Mesh(terrainGeo, terrainMat);
 scene.add(terrain);
 
-/* runway markings */
-const runwayGroup = new THREE.Group();
-const runwaySurf = new THREE.Mesh(
-  new THREE.PlaneGeometry(RUNWAY_HALF_WIDTH*2*0.85, RUNWAY_Z_MAX-RUNWAY_Z_MIN),
-  new THREE.MeshLambertMaterial({ color:0x2c2c2e })
-);
-runwaySurf.rotation.x = -Math.PI/2;
-runwaySurf.position.set(0, 0.3, (RUNWAY_Z_MAX+RUNWAY_Z_MIN)/2);
-runwayGroup.add(runwaySurf);
-const dashMat = new THREE.MeshBasicMaterial({ color:0xffffff });
-for(let z=RUNWAY_Z_MIN+20; z<RUNWAY_Z_MAX-20; z+=40){
-  const dash = new THREE.Mesh(new THREE.PlaneGeometry(2,18), dashMat);
-  dash.rotation.x = -Math.PI/2;
-  dash.position.set(0,0.35,z);
-  runwayGroup.add(dash);
-}
-const lightMat = new THREE.MeshBasicMaterial({ color:0xfff07a });
+/* runway markings — one full set per airport in RUNWAYS */
 const runwayLights = [];
-for(let z=RUNWAY_Z_MIN; z<RUNWAY_Z_MAX; z+=30){
-  [-1,1].forEach(side=>{
-    const bulb = new THREE.Mesh(new THREE.SphereGeometry(1.2,6,6), lightMat.clone());
-    bulb.position.set(side*RUNWAY_HALF_WIDTH*0.9, 1, z);
-    runwayGroup.add(bulb);
-    runwayLights.push(bulb);
-  });
-}
-// approach lighting lead-in
-for(let z=RUNWAY_Z_MIN-180; z<RUNWAY_Z_MIN; z+=20){
-  const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.9,6,6), new THREE.MeshBasicMaterial({color:0xff5c3c}));
-  bulb.position.set(0,1,z);
-  runwayGroup.add(bulb);
-}
-scene.add(runwayGroup);
+const dashMat = new THREE.MeshBasicMaterial({ color:0xffffff });
+const lightMat = new THREE.MeshBasicMaterial({ color:0xfff07a });
 
-/* windsock */
+function buildRunway(rw){
+  const group = new THREE.Group();
+  const surf = new THREE.Mesh(
+    new THREE.PlaneGeometry(rw.halfWidth*2*0.85, rw.zMax-rw.zMin),
+    new THREE.MeshLambertMaterial({ color:0x2c2c2e })
+  );
+  surf.rotation.x = -Math.PI/2;
+  surf.position.set(rw.x, 0.3, (rw.zMax+rw.zMin)/2);
+  group.add(surf);
+  for(let z=rw.zMin+20; z<rw.zMax-20; z+=40){
+    const dash = new THREE.Mesh(new THREE.PlaneGeometry(2,18), dashMat);
+    dash.rotation.x = -Math.PI/2;
+    dash.position.set(rw.x,0.35,z);
+    group.add(dash);
+  }
+  for(let z=rw.zMin; z<rw.zMax; z+=30){
+    [-1,1].forEach(side=>{
+      const bulb = new THREE.Mesh(new THREE.SphereGeometry(1.2,6,6), lightMat.clone());
+      bulb.position.set(rw.x+side*rw.halfWidth*0.9, 1, z);
+      group.add(bulb);
+      runwayLights.push(bulb);
+    });
+  }
+  for(let z=rw.zMin-180; z<rw.zMin; z+=20){
+    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.9,6,6), new THREE.MeshBasicMaterial({color:0xff5c3c}));
+    bulb.position.set(rw.x,1,z);
+    group.add(bulb);
+  }
+  scene.add(group);
+  return group;
+}
+RUNWAYS.forEach(buildRunway);
+
+/* windsock (home airport) */
 const windsockPole = new THREE.Mesh(new THREE.CylinderGeometry(0.15,0.15,8,6), new THREE.MeshLambertMaterial({color:0xcccccc}));
 windsockPole.position.set(60, 4, -60);
 scene.add(windsockPole);
@@ -170,7 +184,7 @@ windsock.rotation.z = Math.PI/2;
 windsock.position.set(63, 7.5, -60);
 scene.add(windsock);
 
-/* simple airport buildings + hangars + tower */
+/* simple airport buildings + hangars + tower (home airport) */
 const buildingMat = new THREE.MeshLambertMaterial({ color:0x9aa3a8 });
 const hangarMat = new THREE.MeshLambertMaterial({ color:0x6b7d8a });
 function makeBuilding(x,z,w,h,d,mat){
@@ -179,7 +193,7 @@ function makeBuilding(x,z,w,h,d,mat){
   scene.add(b);
   return b;
 }
-makeBuilding(-90, -40, 26, 14, 18, buildingMat);
+const terminalBuilding = makeBuilding(-90, -40, 26, 14, 18, buildingMat);
 makeBuilding(-95, -70, 20, 10, 14, buildingMat);
 makeBuilding(90, -30, 40, 16, 22, hangarMat);
 makeBuilding(-70, 10, 8,30,8, buildingMat);
@@ -281,27 +295,81 @@ function updatePrecip(dt, planePos){
 let lightningTimer = rand(2,6);
 let lightningFlash = 0;
 
+/* ---------------- birds ---------------- */
+const birdMat = new THREE.MeshBasicMaterial({ color:0x2b2b2b, side:THREE.DoubleSide });
+function makeBird(){
+  const bird = new THREE.Group();
+  const wingGeoL = new THREE.PlaneGeometry(1.4, 0.5);
+  const wingL = new THREE.Mesh(wingGeoL, birdMat);
+  wingL.position.set(-0.65, 0, 0);
+  bird.add(wingL);
+  const wingR = new THREE.Mesh(wingGeoL.clone(), birdMat);
+  wingR.position.set(0.65, 0, 0);
+  bird.add(wingR);
+  bird.userData.wingL = wingL;
+  bird.userData.wingR = wingR;
+  bird.userData.flapPhase = rand(0, Math.PI*2);
+  bird.userData.speed = rand(6,12);
+  bird.userData.headingAngle = rand(0, Math.PI*2);
+  bird.userData.circleR = rand(60,180);
+  bird.userData.circleCx = 0; bird.userData.circleCz = 0;
+  return bird;
+}
+const birds = [];
+const BIRD_FLOCKS = 5, BIRDS_PER_FLOCK = 6;
+for(let f=0; f<BIRD_FLOCKS; f++){
+  const cx = rand(-3500,3500), cz = rand(-3500,3500), cy = rand(60,220);
+  for(let i=0;i<BIRDS_PER_FLOCK;i++){
+    const b = makeBird();
+    b.userData.circleCx = cx + rand(-40,40);
+    b.userData.circleCz = cz + rand(-40,40);
+    b.position.set(cx + rand(-30,30), cy + rand(-15,15), cz + rand(-30,30));
+    scene.add(b);
+    birds.push(b);
+  }
+}
+function updateBirds(dt, planePos){
+  const now = performance.now()*0.001;
+  birds.forEach(b=>{
+    b.userData.headingAngle += (b.userData.speed/Math.max(b.userData.circleR,1))*dt;
+    b.position.x = b.userData.circleCx + Math.cos(b.userData.headingAngle)*b.userData.circleR;
+    b.position.z = b.userData.circleCz + Math.sin(b.userData.headingAngle)*b.userData.circleR;
+    b.position.y += Math.sin(now*1.5 + b.userData.flapPhase)*0.15;
+    b.rotation.y = -b.userData.headingAngle + Math.PI/2;
+    const flap = Math.sin(now*10 + b.userData.flapPhase);
+    b.userData.wingL.rotation.z = flap*0.6;
+    b.userData.wingR.rotation.z = -flap*0.6;
+
+    const dx = b.position.x - planePos.x, dz = b.position.z - planePos.z;
+    if(Math.sqrt(dx*dx+dz*dz) > 5500){
+      const ang = Math.random()*Math.PI*2, r = rand(2500,3500);
+      b.userData.circleCx = planePos.x + Math.cos(ang)*r;
+      b.userData.circleCz = planePos.z + Math.sin(ang)*r;
+    }
+  });
+}
+
 /* ---------------- aircraft definitions ---------------- */
 const AIRCRAFT_TYPES = {
   prop: {
     name:'PROP TRAINER', scale:1.0, color:0xe8e8ea, accent:0xd23c3c, hasProp:true,
     maxThrust:34, dragCoef:0.010, mass:1.0, stallSpeed:26, maxSpeedKmh:280,
-    engine:'prop', fuelBurn:0.55
+    engine:'prop', fuelBurn:0.55, agility:1.0
   },
   jet: {
     name:'BUSINESS JET', scale:1.3, color:0xf2f2f5, accent:0x2a5fd6, hasProp:false,
-    maxThrust:72, dragCoef:0.0075, mass:1.7, stallSpeed:48, maxSpeedKmh:850,
-    engine:'jet', fuelBurn:0.9
+    maxThrust:98, dragCoef:0.0068, mass:1.7, stallSpeed:48, maxSpeedKmh:1050,
+    engine:'jet', fuelBurn:0.9, agility:0.95
   },
   airliner: {
     name:'AIRLINER', scale:2.2, color:0xffffff, accent:0x1c4fa0, hasProp:false,
     maxThrust:150, dragCoef:0.0062, mass:3.2, stallSpeed:62, maxSpeedKmh:900,
-    engine:'airliner', fuelBurn:1.4
+    engine:'airliner', fuelBurn:1.4, agility:0.55
   },
   fighter: {
     name:'FIGHTER JET', scale:0.9, color:0x4a4f55, accent:0xff8c1a, hasProp:false,
-    maxThrust:230, dragCoef:0.0052, mass:1.2, stallSpeed:70, maxSpeedKmh:1280,
-    engine:'fighter', fuelBurn:1.9
+    maxThrust:320, dragCoef:0.0046, mass:1.2, stallSpeed:70, maxSpeedKmh:1650,
+    engine:'fighter', fuelBurn:1.9, agility:1.4
   }
 };
 let currentType = 'prop';
@@ -432,11 +500,11 @@ const state = {
   gear:1, gearIndex:0,
   gearDown:true,
   flapsStage:0,
+  effFlaps:0,
   airbrake:false,
   reverseThrust:false,
   wheelBrake:false,
   trim:0,
-  autoTrim:false,
   engineOn:false,
   fuel:100,
   damage:100,
@@ -507,18 +575,11 @@ window.addEventListener('keydown', (e)=>{
   if(e.code === 'KeyF'){ state.flapsStage = clamp(state.flapsStage+1,0,3); }
   if(e.code === 'KeyV'){ state.flapsStage = clamp(state.flapsStage-1,0,3); }
   if(e.code === 'KeyI'){
-    if(state.fuel <= 0 && !state.engineOn){ setStatus('No fuel — cannot start engine', 1.6); }
-    else { state.engineOn = !state.engineOn; setStatus(state.engineOn?'Engine start':'Engine shutdown', 1.4); }
+    state.engineOn = !state.engineOn;
+    setStatus(state.engineOn?'Engine start':'Engine shutdown', 1.4);
   }
-  if(e.code === 'KeyY'){ state.autoTrim = !state.autoTrim; }
   if(e.code === 'BracketLeft'){ state.trim = clamp(state.trim - 0.05, -1, 1); }
   if(e.code === 'BracketRight'){ state.trim = clamp(state.trim + 0.05, -1, 1); }
-  if(e.code === 'ArrowRight'){
-    if(state.gearIndex < 5){ state.gearIndex++; gearShiftFlash = 0.4; }
-  }
-  if(e.code === 'ArrowLeft'){
-    if(state.gearIndex > 0){ state.gearIndex--; gearShiftFlash = 0.4; }
-  }
   if(WEATHER_KEYS[e.code]){ weather = WEATHER_KEYS[e.code]; applyWeather(); }
 });
 window.addEventListener('keyup', (e)=>{ keys[e.code] = false; });
@@ -566,7 +627,6 @@ const sysBrake = document.getElementById('sysBrake');
 const sysTrim = document.getElementById('sysTrim');
 const sysEngine = document.getElementById('sysEngine');
 const sysG = document.getElementById('sysG');
-const sysAT = document.getElementById('sysAT');
 const sysCraft = document.getElementById('sysCraft');
 const visionOverlay = document.getElementById('visionOverlay');
 
@@ -742,31 +802,31 @@ function updatePhysics(dt){
   const throttleInput = (keys['ArrowUp']?1:0) - (keys['ArrowDown']?1:0);
 
   state.throttle = clamp(state.throttle + throttleInput*0.6*dt, 0, 1);
-  state.airbrake = !!keys['KeyB'];
   state.wheelBrake = !!keys['Space'];
   state.reverseThrust = !!keys['KeyX'] && state.onGround && state.gearDown;
 
-  // fuel consumption + engine gating
-  if(state.engineOn && state.fuel > 0){
-    state.fuel = clamp(state.fuel - spec.fuelBurn*(0.15+state.throttle)*dt, 0, 100);
-    if(state.fuel <= 0){ state.engineOn = false; setStatus('Fuel exhausted — engine shutdown', 2.5); }
-  }
-  const engineRunning = state.engineOn && state.fuel > 0;
+  // fuel: unlimited — engine only stops if the pilot shuts it down manually
+  const engineRunning = state.engineOn;
 
-  // trim & auto-trim
-  if(state.autoTrim){ state.trim = lerp(state.trim, clamp(state.pitchRate*0.4,-1,1), 0.02); }
+  // trim is always auto-managed now — it quietly cancels out sustained pitch pressure
+  state.trim = lerp(state.trim, clamp(state.pitchRate*0.4,-1,1), 0.02);
   const trimPitch = state.trim*0.4;
 
+  const agility = spec.agility || 1.0;
   if(autopilot){
-    state.rollRate = lerp(state.rollRate, -state.roll*2.2, 0.12);
-    state.pitchRate = lerp(state.pitchRate, (trimPitch-state.pitch)*1.4, 0.08);
-    state.yawRate = lerp(state.yawRate, state.roll*0.55, 0.1);
+    state.rollRate = lerp(state.rollRate, -state.roll*2.2, 0.12*agility);
+    state.pitchRate = lerp(state.pitchRate, (trimPitch-state.pitch)*1.4, 0.08*agility);
+    state.yawRate = lerp(state.yawRate, state.roll*0.55, 0.1*agility);
   } else {
     const targetBank = turnInput * 0.35; // coordinated turn: slight bank only
-    state.rollRate = lerp(state.rollRate, (targetBank-state.roll)*3.0 + manualRollInput*1.6, 0.12);
-    state.pitchRate = lerp(state.pitchRate, pitchInput*0.9 + (trimPitch-state.pitch)*0.3, 0.09);
-    state.yawRate = lerp(state.yawRate, turnInput*0.5 + state.roll*0.5, 0.09);
+    state.rollRate = lerp(state.rollRate, (targetBank-state.roll)*3.0 + manualRollInput*1.6, clamp(0.12*agility,0,0.9));
+    state.pitchRate = lerp(state.pitchRate, pitchInput*0.9 + (trimPitch-state.pitch)*0.3, clamp(0.09*agility,0,0.9));
+    state.yawRate = lerp(state.yawRate, turnInput*0.5 + state.roll*0.5, clamp(0.09*agility,0,0.9));
   }
+
+  // auto-coordinated flaps: a touch of extra flap deploys automatically while banking/turning
+  const turningFactor = state.onGround ? 0 : clamp(Math.abs(turnInput)*0.6 + Math.abs(state.roll)/1.25*0.6, 0, 1);
+  state.effFlaps = clamp(state.flapsStage + turningFactor, 0, 3);
 
   state.pitch = clamp(state.pitch + state.pitchRate*dt, -1.35, 1.35);
   state.roll = clamp(state.roll + state.rollRate*dt, -1.25, 1.25);
@@ -776,6 +836,14 @@ function updatePhysics(dt){
   plane.quaternion.setFromEuler(euler);
   forwardVec.set(0,0,-1).applyQuaternion(plane.quaternion);
 
+  // automatic transmission: shifts itself based on speed, with hysteresis so it doesn't hunt back and forth
+  const speedFrac = clamp(state.speed/maxSpeedMs(), 0, 1);
+  if(speedFrac > GEAR_RATIOS[state.gearIndex].top*0.92 && state.gearIndex < 5){
+    state.gearIndex++; gearShiftFlash = 0.35;
+  } else if(state.gearIndex > 0 && speedFrac < GEAR_RATIOS[state.gearIndex-1].top*0.55){
+    state.gearIndex--; gearShiftFlash = 0.35;
+  }
+
   // gearbox
   const gr = GEAR_RATIOS[state.gearIndex];
   const gearMaxSpeed = maxSpeedMs() * gr.top;
@@ -783,8 +851,16 @@ function updatePhysics(dt){
   if(state.reverseThrust) thrust = -spec.maxThrust*0.5;
   if(gearShiftFlash > 0){ gearShiftFlash -= dt; thrust *= 0.6; }
 
-  const flapDrag = state.flapsStage*0.25;
-  const flapLiftBonus = state.flapsStage*0.10;
+  // auto airbrake / spoiler: deploys by itself whenever it's actually needed —
+  // shedding speed on the rollout after landing, bleeding off overspeed for the
+  // current gear, or catching a low-power steep dive.
+  const overspeedForGear = !state.onGround && state.speed > gearMaxSpeed*0.92;
+  const steepDiveLowPower = !state.onGround && state.pitch < -0.22 && state.throttle < 0.25 && state.speed > spec.stallSpeed*1.3;
+  const groundRollout = state.onGround && state.speed > 4 && state.throttle < 0.2;
+  state.airbrake = overspeedForGear || steepDiveLowPower || groundRollout;
+
+  const flapDrag = state.effFlaps*0.25;
+  const flapLiftBonus = state.effFlaps*0.10;
   const gearDrag = state.gearDown ? 0.12 : 0;
   const airbrakeDrag = state.airbrake ? 1.1 : 0;
 
@@ -870,7 +946,7 @@ function updatePhysics(dt){
 
   if(aircraft.propBlades) aircraft.propBlades.rotation.z += dt * (4 + state.throttle*40*(engineRunning?1:0));
   if(aircraft.gearGroup) aircraft.gearGroup.visible = state.gearDown;
-  if(aircraft.flapGroup) aircraft.flapGroup.rotation.x = state.flapsStage*0.15;
+  if(aircraft.flapGroup) aircraft.flapGroup.rotation.x = state.effFlaps*0.15;
   if(aircraft.spoilerGroup) aircraft.spoilerGroup.visible = state.airbrake;
 
   recycleClouds(state.pos);
@@ -955,12 +1031,11 @@ function updateHUD(dt){
   apModeEl.className = autopilot ? 'on' : 'off';
 
   sysGear.textContent = 'GEAR: ' + (state.gearDown ? 'DOWN' : 'UP');
-  sysFlaps.textContent = 'FLAPS: ' + state.flapsStage;
-  sysBrake.textContent = 'AIRBRAKE: ' + (state.airbrake ? 'ON' : 'OFF');
-  sysTrim.textContent = 'TRIM: ' + state.trim.toFixed(2);
+  sysFlaps.textContent = 'FLAPS: ' + state.flapsStage + (state.effFlaps > state.flapsStage ? ' (+turn)' : '');
+  sysBrake.textContent = 'AIRBRAKE: ' + (state.airbrake ? 'AUTO-ON' : 'off');
+  sysTrim.textContent = 'TRIM: ' + state.trim.toFixed(2) + ' (auto)';
   sysEngine.textContent = 'ENGINE: ' + (state.engineOn ? 'ON' : 'OFF');
   sysG.textContent = 'G: ' + state.gForce.toFixed(1);
-  sysAT.textContent = 'AUTO-TRIM: ' + (state.autoTrim ? 'ON' : 'OFF');
   sysCraft.textContent = currentSpec().name;
 
   if(state.stalling && statusTimer <= 0) setStatus('STALL — nose down, add throttle', 1.2);
