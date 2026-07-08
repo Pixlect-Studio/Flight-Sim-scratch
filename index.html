@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AEROFRAME PRO — Flight Simulator</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <canvas id="scene"></canvas>
+  <canvas id="minimap"></canvas>
+  <canvas id="horizon"></canvas>
+
+  <!-- Start overlay -->
+  <div id="startOverlay">
+    <div class="startCard">
+      <h1>AEROFRAME <span>PRO</span></h1>
+      <p class="tagline">procedural flight simulator</p>
+
+      <div class="aircraftPicker" id="aircraftPicker">
+        <div class="craftOption selected" data-craft="prop">
+          <div class="craftIcon">✈</div>
+          <div class="craftName">Prop Trainer</div>
+          <div class="craftStat">280 km/h · nimble</div>
+        </div>
+        <div class="craftOption" data-craft="jet">
+          <div class="craftIcon">🛩</div>
+          <div class="craftName">Business Jet</div>
+          <div class="craftStat">850 km/h · efficient</div>
+        </div>
+        <div class="craftOption" data-craft="airliner">
+          <div class="craftIcon">🛫</div>
+          <div class="craftName">Airliner</div>
+          <div class="craftStat">900 km/h · heavy</div>
+        </div>
+        <div class="craftOption" data-craft="fighter">
+          <div class="craftIcon">🚀</div>
+          <div class="craftName">Fighter Jet</div>
+          <div class="craftStat">1280 km/h · brutal</div>
+        </div>
+      </div>
+
+      <button id="startBtn">ENGINE START</button>
+
+      <div class="controlsGrid">
+        <div><span>W / S</span>pitch up / down</div>
+        <div><span>A / D</span>coordinated turn L / R</div>
+        <div><span>Q / E</span>manual roll (aerobatic)</div>
+        <div><span>↑ / ↓</span>throttle up / down</div>
+        <div><span>auto</span>6-speed transmission shifts itself</div>
+        <div><span>G</span>landing gear</div>
+        <div><span>F / V</span>flaps extend / retract</div>
+        <div><span>auto</span>airbrake deploys when needed</div>
+        <div><span>auto</span>flaps add turn coordination</div>
+        <div><span>auto</span>trim always self-adjusts</div>
+        <div><span>auto</span>fuel is unlimited</div>
+        <div><span>X</span>reverse thrust (ground)</div>
+        <div><span>Space</span>wheel brakes (ground)</div>
+        <div><span>I</span>engine start / shutdown</div>
+        <div><span>C</span>cycle camera</div>
+        <div><span>P</span>autopilot (ALT/HDG/SPD)</div>
+        <div><span>1–7</span>weather presets</div>
+        <div><span>R</span>reset aircraft</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Airliner check-in / boarding overlay -->
+  <div id="boardingOverlay" class="hiddenOverlay">
+    <div class="startCard boardingCard">
+      <h1>CHECK-IN</h1>
+      <p class="tagline">match the passport color to the passenger — get it wrong, lose coins</p>
+
+      <div class="coinsRow">COINS: <span id="coinsVal">100</span></div>
+
+      <div id="passengerQueue" class="passengerQueue"></div>
+
+      <div class="passportPanel">
+        <div class="passportSwatchWrap">
+          <div class="swatchLabel">PASSENGER</div>
+          <div id="personSwatch" class="swatch"></div>
+        </div>
+        <div class="passportSwatchWrap">
+          <div class="swatchLabel">PASSPORT</div>
+          <div id="passportSwatch" class="swatch"></div>
+        </div>
+      </div>
+
+      <div id="boardingResult" class="boardingResult"></div>
+
+      <div class="boardingButtons">
+        <button id="declineBtn" class="declineBtn">DECLINE</button>
+        <button id="acceptBtn" class="acceptBtn">ACCEPT</button>
+      </div>
+
+      <button id="boardBtn" class="boardBtn">BOARD PASSENGERS &amp; START ENGINE</button>
+    </div>
+  </div>
+
+  <!-- HUD -->
+  <div id="hud">
+    <div class="panel top-left">
+      <div class="readout">
+        <div class="label">SPD</div>
+        <div class="value" id="spdVal">000</div>
+        <div class="unit">km/h</div>
+      </div>
+      <div class="readout">
+        <div class="label">THR</div>
+        <div class="value" id="thrVal">00</div>
+        <div class="unit">%</div>
+      </div>
+      <div class="readout">
+        <div class="label">RPM</div>
+        <div class="value" id="rpmVal">00</div>
+        <div class="unit">x100</div>
+      </div>
+      <div class="readout">
+        <div class="label">GEAR</div>
+        <div class="value" id="gearVal">1</div>
+        <div class="unit">/6</div>
+      </div>
+    </div>
+
+    <div class="panel top-right">
+      <div class="readout">
+        <div class="label">ALT</div>
+        <div class="value" id="altVal">0000</div>
+        <div class="unit">ft</div>
+      </div>
+      <div class="readout">
+        <div class="label">HDG</div>
+        <div class="value" id="hdgVal">000</div>
+        <div class="unit">°</div>
+      </div>
+      <div class="readout">
+        <div class="label">FUEL</div>
+        <div class="value" id="fuelVal">100</div>
+        <div class="unit">%</div>
+      </div>
+      <div class="readout">
+        <div class="label">DMG</div>
+        <div class="value" id="dmgVal">100</div>
+        <div class="unit">%</div>
+      </div>
+    </div>
+
+    <div class="panel systems-left">
+      <div class="sysRow" id="sysGear">GEAR: DOWN</div>
+      <div class="sysRow" id="sysFlaps">FLAPS: 0</div>
+      <div class="sysRow" id="sysBrake">AIRBRAKE: OFF</div>
+      <div class="sysRow" id="sysTrim">TRIM: 0.0</div>
+      <div class="sysRow" id="sysEngine">ENGINE: OFF</div>
+    </div>
+
+    <div class="panel systems-right">
+      <div class="sysRow" id="sysG">G: 1.0</div>
+      <div class="sysRow" id="sysCraft">PROP TRAINER</div>
+    </div>
+
+    <div class="panel center-bottom">
+      <div id="statusMsg"></div>
+      <div class="modeRow">
+        <span id="camMode">CHASE CAM</span>
+        <span id="apMode" class="off">AUTOPILOT OFF</span>
+        <span id="weatherMode">CLEAR</span>
+      </div>
+    </div>
+
+    <div class="instrLabel">ATT</div>
+    <div class="mapLabel">MAP</div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
