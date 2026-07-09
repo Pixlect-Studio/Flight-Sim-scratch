@@ -1,6 +1,7 @@
 # License
 ## ©️ 2026 Pixlect studios
-### ©️ 2026 DXB_Gamer
+## Team:
+### Developed: DXB_Gamer
 
 ##### Code is free to use But... Not allowed to be Forked, Copied and re-distributed
 
