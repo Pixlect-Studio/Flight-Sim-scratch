@@ -1,5 +1,6 @@
 # License
 ## ©️ 2026 Pixlect studios
+## ©️ 2026 DXB_Gamer
 ## Team:
 ### Developed: DXB_Gamer
 
@@ -7,9 +8,9 @@
 
 ------------------------------------------------
 
-PLAY NOW AT : Pixlect-Studio.github.io/Flight-Sim/
-Or go to projects in www.pixlect-studios.com 
+#### PLAY NOW AT : Pixlect-Studio.github.io/Flight-Sim/
+#### Or go to projects in www.pixlect-studios.com 
 
 
-# [ ALERT ] #
+# [ ALERT ] 
 ## THE AIRLINER PLANE AND PASSENGER BUS IS STILL UNDER DEVELOPMENT, PLEASE PLAY AT YOUR OWN ENJOYMENT
