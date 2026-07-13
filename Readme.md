@@ -1,6 +1,5 @@
 # License
 ## ©️ 2026 Pixlect studios
-## ©️ 2026 DXB_Gamer
 ## Team:
 ### Developed: DXB_Gamer
 
